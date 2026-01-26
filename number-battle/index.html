@@ -11,7 +11,8 @@
 
 <body>
     <div class="game-container">
-        <header class="game-header">
+        <!-- HP表示はCanvas内に描画するため非表示 -->
+        <header class="game-header" style="display: none;">
             <div class="player-info player1">
                 <span class="player-name">Player 1</span>
                 <span class="player-hp" id="hp1">100</span>
@@ -31,8 +32,13 @@
             <div class="timer" id="timer">0:30</div>
         </footer>
 
-        <div class="result-overlay" id="resultOverlay">
+        <!-- 結果表示はCanvas内に描画するため非表示 -->
+        <div class="result-overlay" id="resultOverlay" style="display: none;">
             <div class="result-text" id="resultText">WINNER!</div>
+        </div>
+
+        <div class="start-overlay" id="startOverlay">
+            <button class="start-button" id="startButton">🎬 REC START</button>
         </div>
     </div>
 

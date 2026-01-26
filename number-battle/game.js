@@ -4,14 +4,14 @@ const CONFIG = {
     ROUND_DURATION: 9999,    // 実質無限（ラウンド無効時）
     TOTAL_ROUNDS: 3,         // 全ラウンド数（無効時は使用しない）
     ROUND_INTERVAL: 2,       // ラウンド間のインターバル（秒）
-    INITIAL_HP: 50,
+    INITIAL_HP: 99,
     BULLET_DAMAGE: 1,
     BULLET_RADIUS: 8,
     PLAYER_RADIUS: 25,
     ITEM_SPAWN_INTERVAL: 3000,  // アイテム出現チェック間隔（ms）
-    ITEM_SPAWN_CHANCE: 0.3,     // アイテム出現確率（30%）
+    ITEM_SPAWN_CHANCE: 0.5,     // アイテム出現確率（30%）
     ITEM_RADIUS: 20,
-    ITEM_DURATION: 8000,        // アイテム効果持続時間（ms）
+    ITEM_DURATION: 2500,        // アイテム効果持続時間（ms）
     // AI動作設定
     AI_DODGE_DISTANCE: 100,     // 弾を回避し始める距離
     AI_ITEM_PRIORITY_DISTANCE: 500, // アイテムを優先する距離
@@ -74,32 +74,50 @@ const PLAYER_CONFIGS = {
     },
 };
 
-// ===== Colors (Pastel) =====
+// ===== Colors (Simple) =====
 const COLORS = {
     player1: {
-        main: '#FF8FAB',
-        light: '#FFB5C5',
-        dark: '#E75480',
-        bullet: '#FF69B4',
+        main: '#E74C3C',  // 赤
+        light: '#E74C3C',
+        dark: '#C0392B',
+        bullet: '#E74C3C',
     },
     player2: {
-        main: '#7DFFB3',
-        light: '#B5FFCF',
-        dark: '#3CB371',
-        bullet: '#00FF7F',
+        main: '#3498DB',  // 青
+        light: '#3498DB',
+        dark: '#2980B9',
+        bullet: '#3498DB',
     },
 };
 
 // ===== Audio System =====
 let audioCtx = null;
+let masterGain = null;
+let audioDestination = null;  // 録画用のオーディオストリーム
 
 function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // マスターゲインノード（すべての音声をここに集約）
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 1.0;
+
+        // スピーカー出力
+        masterGain.connect(audioCtx.destination);
+
+        // 録画用のオーディオストリーム
+        audioDestination = audioCtx.createMediaStreamDestination();
+        masterGain.connect(audioDestination);
     }
     if (audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
+}
+
+// 音声出力先を取得（masterGainを使用）
+function getAudioOutput() {
+    return masterGain || audioCtx?.destination;
 }
 
 // 発射音 - ビームライフル風「ピュン」
@@ -114,7 +132,7 @@ function playShootSound(isPlayer1) {
 
     osc1.connect(filter1);
     filter1.connect(gain1);
-    gain1.connect(audioCtx.destination);
+    gain1.connect(getAudioOutput());
 
     // プレイヤーごとに音程を変える
     const startFreq = isPlayer1 ? 2400 : 1800;
@@ -138,7 +156,7 @@ function playShootSound(isPlayer1) {
     const gain2 = audioCtx.createGain();
 
     osc2.connect(gain2);
-    gain2.connect(audioCtx.destination);
+    gain2.connect(getAudioOutput());
 
     osc2.frequency.setValueAtTime(isPlayer1 ? 3000 : 2500, t);
     osc2.type = 'square';
@@ -167,7 +185,7 @@ function playShootSound(isPlayer1) {
 
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
-    noiseGain.connect(audioCtx.destination);
+    noiseGain.connect(getAudioOutput());
 
     noiseGain.gain.setValueAtTime(0.06, t);
     noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
@@ -182,7 +200,7 @@ function playHitSound() {
     const gain = audioCtx.createGain();
 
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(getAudioOutput());
 
     osc.frequency.setValueAtTime(300, audioCtx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.15);
@@ -205,7 +223,7 @@ function playBulletClashSound() {
     const gain = audioCtx.createGain();
 
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(getAudioOutput());
 
     osc.frequency.setValueAtTime(1800, t);
     osc.frequency.exponentialRampToValueAtTime(800, t + 0.05);
@@ -229,7 +247,7 @@ function playItemPickupSound() {
         const gain = audioCtx.createGain();
 
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(getAudioOutput());
 
         osc.frequency.setValueAtTime(freq, t + i * 0.05);
         osc.type = 'sine';
@@ -251,7 +269,7 @@ function playRoundStartSound() {
     const gain = audioCtx.createGain();
 
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(getAudioOutput());
 
     osc.frequency.setValueAtTime(440, t);
     osc.frequency.setValueAtTime(880, t + 0.1);
@@ -272,7 +290,7 @@ function playExplosionSound() {
     const osc1 = audioCtx.createOscillator();
     const gain1 = audioCtx.createGain();
     osc1.connect(gain1);
-    gain1.connect(audioCtx.destination);
+    gain1.connect(getAudioOutput());
 
     osc1.frequency.setValueAtTime(150, audioCtx.currentTime);
     osc1.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.5);
@@ -302,7 +320,7 @@ function playExplosionSound() {
 
     noise.connect(filter);
     filter.connect(noiseGain);
-    noiseGain.connect(audioCtx.destination);
+    noiseGain.connect(getAudioOutput());
 
     noiseGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
     noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
@@ -313,7 +331,7 @@ function playExplosionSound() {
     const osc2 = audioCtx.createOscillator();
     const gain2 = audioCtx.createGain();
     osc2.connect(gain2);
-    gain2.connect(audioCtx.destination);
+    gain2.connect(getAudioOutput());
 
     osc2.frequency.setValueAtTime(1200, audioCtx.currentTime);
     osc2.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.2);
@@ -337,7 +355,7 @@ function playWinSound() {
         const gain = audioCtx.createGain();
 
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(getAudioOutput());
 
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime + times[i]);
         osc.type = 'sine';
@@ -361,7 +379,7 @@ function playDrawSound() {
     const gain1 = audioCtx.createGain();
 
     osc1.connect(gain1);
-    gain1.connect(audioCtx.destination);
+    gain1.connect(getAudioOutput());
 
     osc1.frequency.setValueAtTime(400, t);
     osc1.frequency.exponentialRampToValueAtTime(80, t + 0.8);
@@ -378,7 +396,7 @@ function playDrawSound() {
     const gain2 = audioCtx.createGain();
 
     osc2.connect(gain2);
-    gain2.connect(audioCtx.destination);
+    gain2.connect(getAudioOutput());
 
     osc2.frequency.setValueAtTime(95, t + 0.1);
     osc2.type = 'sawtooth';
@@ -398,7 +416,7 @@ function playDrawSound() {
         const gain = audioCtx.createGain();
 
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(getAudioOutput());
 
         osc.frequency.setValueAtTime(freq, t + sadTimes[i]);
         osc.type = 'sine';
@@ -414,12 +432,14 @@ function playDrawSound() {
 // ===== Game State =====
 let canvas, ctx;
 let gameRunning = false;
+let gamePaused = false;  // 開始前の待機状態
 let roundTime = CONFIG.ROUND_DURATION;
 let lastTime = 0;
 let lastShootTime = { player1: 0, player2: 0 };
 let winner = null;
 let winnerDeclared = false;
 let waitingForBulletsClear = false;
+const START_DELAY = 1500;  // 開始前の待機時間（ms）
 
 // ===== Round State =====
 let currentRound = 1;
@@ -434,6 +454,20 @@ let lastItemSpawnTime = 0;
 
 // ===== Player Collision State =====
 let lastPlayerCollisionTime = 0;
+
+// ===== Recording State =====
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+
+// ===== Result Display State (Canvas内描画用) =====
+let showResultOnCanvas = false;
+let resultDisplayData = {
+    text: '',
+    color: '#FFFFFF',
+    glowColor: '#FFFFFF',
+    animationProgress: 0
+};
 
 // ===== Game Objects =====
 let players = [];
@@ -588,46 +622,33 @@ class Player {
         this.x += this.vx;
         this.y += this.vy;
 
-        // Bounce off walls
+        // Bounce off walls (上部はHP表示エリア80pxを避ける)
+        const topBoundary = 80;
         if (this.x - this.radius <= 0 || this.x + this.radius >= canvasWidth) {
             this.vx *= -1;
             this.x = Math.max(this.radius, Math.min(canvasWidth - this.radius, this.x));
         }
-        if (this.y - this.radius <= 0 || this.y + this.radius >= canvasHeight) {
+        if (this.y - this.radius <= topBoundary || this.y + this.radius >= canvasHeight) {
             this.vy *= -1;
-            this.y = Math.max(this.radius, Math.min(canvasHeight - this.radius, this.y));
+            this.y = Math.max(topBoundary + this.radius, Math.min(canvasHeight - this.radius, this.y));
         }
     }
 
     draw(ctx) {
         if (!this.alive) return;
 
-        // Outer glow
-        const gradient = ctx.createRadialGradient(
-            this.x, this.y, this.radius * 0.5,
-            this.x, this.y, this.radius * 1.5
-        );
-        gradient.addColorStop(0, this.color.main);
-        gradient.addColorStop(0.5, this.color.light + '80');
-        gradient.addColorStop(1, 'transparent');
-
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Main circle
+        // シンプルな単色円
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = this.color.main;
         ctx.fill();
-        ctx.strokeStyle = this.color.light;
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
         ctx.stroke();
 
         // HP Text
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 32px Outfit';
+        ctx.font = 'bold 28px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.hp.toString(), this.x, this.y);
@@ -635,10 +656,31 @@ class Player {
 
     takeDamage(amount) {
         this.hp -= amount;
-        if (this.hp <= 0) {
+        if (this.hp <= 0 && this.alive) {
             this.hp = 0;
             this.alive = false;
             this.explode();
+
+            // ゲーム終了処理
+            if (!winnerDeclared) {
+                winnerDeclared = true;
+                gameRunning = false;
+                bullets = []; // 残りの弾をクリア
+
+                // 勝者を特定（自分が死んだので相手が勝者）
+                const winnerId = this.id === 'player1' ? 'player2' : 'player1';
+                const winnerPlayer = players.find(p => p.id === winnerId);
+
+                // 爆発エフェクト終了後にWIN表示（約1.5秒後）
+                setTimeout(() => {
+                    if (winnerPlayer && winnerPlayer.alive) {
+                        showWinner(winnerPlayer);
+                    } else {
+                        // 両方死んだ場合は引き分け
+                        showDraw();
+                    }
+                }, 1500);
+            }
         }
     }
 
@@ -792,38 +834,21 @@ class Bullet {
         this.x += this.vx;
         this.y += this.vy;
 
-        // Bounce off walls (弾も反射)
+        // 壁で消滅 (上部はHP表示エリア80pxを含む)
+        const topBoundary = 80;
         if (this.x - this.radius <= 0 || this.x + this.radius >= canvasWidth) {
-            this.alive = false; // 壁で消滅
+            this.alive = false;
         }
-        if (this.y - this.radius <= 0 || this.y + this.radius >= canvasHeight) {
-            this.alive = false; // 壁で消滅
+        if (this.y - this.radius <= topBoundary || this.y + this.radius >= canvasHeight) {
+            this.alive = false;
         }
     }
 
     draw(ctx) {
-        // Draw trail
-        for (let i = 0; i < this.trail.length; i++) {
-            const alpha = (i + 1) / this.trail.length * 0.5;
-            const size = this.radius * (0.3 + (i / this.trail.length) * 0.7);
-            ctx.beginPath();
-            ctx.arc(this.trail[i].x, this.trail[i].y, size, 0, Math.PI * 2);
-            ctx.fillStyle = this.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
-            ctx.fill();
-        }
-
-        // Draw bullet
-        const gradient = ctx.createRadialGradient(
-            this.x, this.y, 0,
-            this.x, this.y, this.radius
-        );
-        gradient.addColorStop(0, '#fff');
-        gradient.addColorStop(0.3, this.color);
-        gradient.addColorStop(1, this.color + '00');
-
+        // シンプルな単色円
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = this.color;
         ctx.fill();
     }
 
@@ -856,34 +881,17 @@ class Item {
     }
 
     draw(ctx) {
-        const pulse = 1 + Math.sin(this.pulsePhase) * 0.15;
-        const glowPulse = 1 + Math.sin(this.pulsePhase * 0.5) * 0.3;
-
-        // 外側のグロー
-        const gradient = ctx.createRadialGradient(
-            this.x, this.y, 0,
-            this.x, this.y, this.radius * 2 * glowPulse
-        );
-        gradient.addColorStop(0, this.config.color + '80');
-        gradient.addColorStop(0.5, this.config.glowColor + '40');
-        gradient.addColorStop(1, 'transparent');
-
+        // シンプルな単色円
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * 2 * glowPulse, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // メインの円
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = this.config.color;
         ctx.fill();
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
         ctx.stroke();
 
         // アイコン
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = '#000';
         ctx.font = `bold ${this.radius}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -922,19 +930,9 @@ class Particle {
 
     draw(ctx) {
         ctx.globalAlpha = this.life;
-
-        // グロー効果
-        const gradient = ctx.createRadialGradient(
-            this.x, this.y, 0,
-            this.x, this.y, this.size * this.life
-        );
-        gradient.addColorStop(0, '#FFFFFF');
-        gradient.addColorStop(0.3, this.color);
-        gradient.addColorStop(1, this.color + '00');
-
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = this.color;
         ctx.fill();
         ctx.globalAlpha = 1;
     }
@@ -973,6 +971,72 @@ function shoot(player, target, timestamp) {
     }
 }
 
+// ===== Recording Functions =====
+function startRecording() {
+    // ビデオストリーム（Canvas）
+    const videoStream = canvas.captureStream(60); // 60fps
+
+    // オーディオとビデオを結合したストリームを作成
+    let combinedStream;
+    if (audioDestination && audioDestination.stream) {
+        // オーディオトラックを追加
+        combinedStream = new MediaStream([
+            ...videoStream.getVideoTracks(),
+            ...audioDestination.stream.getAudioTracks()
+        ]);
+    } else {
+        combinedStream = videoStream;
+    }
+
+    const options = {
+        mimeType: 'video/webm;codecs=vp9,opus',  // VP9動画 + Opusオーディオ
+        videoBitsPerSecond: 8000000,  // 8Mbps（高画質）
+        audioBitsPerSecond: 128000    // 128kbps オーディオ
+    };
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options.mimeType = 'video/webm';
+    }
+
+    mediaRecorder = new MediaRecorder(combinedStream, options);
+    recordedChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+        }
+    };
+
+    mediaRecorder.onstop = () => {
+        downloadRecording();
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+    console.log('Recording started');
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        console.log('Recording stopped');
+    }
+}
+
+function downloadRecording() {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.download = `DualSpheres_${timestamp}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('Recording downloaded');
+}
+
 // ===== Game Functions =====
 function initGame() {
     canvas = document.getElementById('gameCanvas');
@@ -981,28 +1045,47 @@ function initGame() {
     // オーディオ初期化（ユーザー操作後に有効化）
     document.addEventListener('click', initAudio, { once: true });
     document.addEventListener('keydown', initAudio, { once: true });
-    initAudio();
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    // スタートボタンのクリックハンドラ
+    const startButton = document.getElementById('startButton');
+    const startOverlay = document.getElementById('startOverlay');
+    if (startButton) {
+        startButton.addEventListener('click', () => {
+            startGameWithRecording();
+            startOverlay.classList.add('hidden');
+        });
+    }
+}
+
+// ゲームと録画を同時に開始
+function startGameWithRecording() {
+    initAudio();
     resetGame();
+
+    // 最初は一時停止状態で開始
     gameRunning = true;
+    gamePaused = true;
     lastTime = performance.now();
+
+    // 録画開始
+    startRecording();
+
+    // 1.5秒後にゲーム開始
+    setTimeout(() => {
+        gamePaused = false;
+        playRoundStartSound();
+    }, START_DELAY);
+
     requestAnimationFrame(gameLoop);
 }
 
 function resizeCanvas() {
-    const container = canvas.parentElement;
-    const header = document.querySelector('.game-header');
-    const footer = document.querySelector('.game-footer');
-
-    // フッターが非表示の場合はoffsetHeightが0になるので問題なく動作
-    const headerHeight = header ? header.offsetHeight : 0;
-    const footerHeight = footer ? footer.offsetHeight : 0;
-
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight - headerHeight - footerHeight;
+    // 正方形フィールド
+    canvas.width = 540;
+    canvas.height = 540;
 }
 
 // マッチ全体のリセット（3ラウンド制の開始）
@@ -1029,20 +1112,24 @@ function resetRound() {
     inRoundInterval = false;
     lastItemSpawnTime = performance.now();
     lastPlayerCollisionTime = 0;
+    showResultOnCanvas = false;
+    resultDisplayData = { text: '', color: '#FFFFFF', glowColor: '#FFFFFF', animationProgress: 0 };
+    gamePaused = false;
 
     const margin = CONFIG.PLAYER_RADIUS + 50;
+    const topMargin = 100;  // HP表示エリアの下から開始
 
     players = [
         new Player(
             'player1',
             margin + Math.random() * (canvas.width / 4),
-            margin + Math.random() * (canvas.height - margin * 2),
+            topMargin + Math.random() * (canvas.height - topMargin - margin),
             COLORS.player1
         ),
         new Player(
             'player2',
             canvas.width - margin - Math.random() * (canvas.width / 4),
-            margin + Math.random() * (canvas.height - margin * 2),
+            topMargin + Math.random() * (canvas.height - topMargin - margin),
             COLORS.player2
         ),
     ];
@@ -1141,28 +1228,20 @@ function showWinner(winnerPlayer) {
     // 勝利音
     playWinSound();
 
-    const overlay = document.getElementById('resultOverlay');
-    const resultText = document.getElementById('resultText');
-
-    // 勝者名とWIN!を表示
+    // Canvas内に結果を表示（録画に含める）
     const playerName = winnerPlayer.id === 'player1' ? 'Player1' : 'Player2';
-    resultText.innerHTML = `${playerName}<br>WIN!`;
-    resultText.style.textAlign = 'center';
+    showResultOnCanvas = true;
+    resultDisplayData = {
+        text: `${playerName}\nWIN!`,
+        color: winnerPlayer.color.light,
+        glowColor: winnerPlayer.color.main,
+        animationProgress: 0
+    };
 
-    // 勝者の色でテキストを表示
-    resultText.style.background = `linear-gradient(45deg, ${winnerPlayer.color.light}, ${winnerPlayer.color.main})`;
-    resultText.style.webkitBackgroundClip = 'text';
-    resultText.style.webkitTextFillColor = 'transparent';
-    resultText.style.backgroundClip = 'text';
-    resultText.style.filter = `drop-shadow(0 0 20px ${winnerPlayer.color.main}) drop-shadow(0 0 40px ${winnerPlayer.color.main}) drop-shadow(0 0 60px ${winnerPlayer.color.light})`;
-
-    // アニメーションをリセットして再生
-    resultText.style.animation = 'none';
-    resultText.offsetHeight;
-    resultText.style.animation = 'resultPop 0.5s ease-out';
-
-    overlay.classList.add('show');
-    // ゲーム終了（自動ラウンド遷移なし）
+    // 少し待ってから録画を停止（WIN表示を含めるため）
+    setTimeout(() => {
+        stopRecording();
+    }, 2500);
 }
 
 // ===== Game Loop =====
@@ -1172,6 +1251,13 @@ function gameLoop(timestamp) {
 
     // エフェクトの更新（ゲーム終了後も継続）
     updateEffects();
+
+    // 一時停止中は描画のみ（ゲームロジックは更新しない）
+    if (gamePaused) {
+        draw();
+        requestAnimationFrame(gameLoop);
+        return;
+    }
 
     if (gameRunning) {
         // Update timer（ラウンド制が有効な場合のみ）
@@ -1306,92 +1392,14 @@ function gameLoop(timestamp) {
         });
         items = items.filter(item => item.alive);
 
-        // Check for death
-        players.forEach((player, index) => {
-            if (!player.alive && gameRunning) {
-                // 勝者を決定（死んだプレイヤーの相手が勝者）
-                const winnerId = player.id === 'player1' ? 'player2' : 'player1';
-                const winnerPlayer = players.find(p => p.id === winnerId);
-                winner = winnerPlayer;
-                gameRunning = false;
-                waitingForBulletsClear = true;
-            }
-        });
-
         // Update UI
         updateUI();
     }
 
-    // ゲーム終了後の処理
+    // ゲーム終了後の処理（パーティクルのみ更新）
     if (!gameRunning) {
-        // パーティクル更新
         particles.forEach(p => p.update());
         particles = particles.filter(p => p.alive);
-
-        // 弾の更新と当たり判定（生き残ったプレイヤーにも当たる）
-        bullets.forEach(bullet => bullet.update(canvas.width, canvas.height));
-
-        // 弾同士の相殺判定（無効化中）
-        // checkBulletCollisions();
-
-        // 生き残ったプレイヤーへの当たり判定
-        bullets.forEach(bullet => {
-            if (!bullet.alive) return;
-            players.forEach(player => {
-                if (player.alive && bullet.ownerId !== player.id) {
-                    const dx = bullet.x - player.x;
-                    const dy = bullet.y - player.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    if (distance < bullet.radius + player.radius) {
-                        player.takeDamage(CONFIG.BULLET_DAMAGE);
-                        bullet.alive = false;
-                        playHitSound();
-
-                        // Hit particles
-                        for (let i = 0; i < 5; i++) {
-                            particles.push(new Particle(
-                                bullet.x, bullet.y,
-                                (Math.random() - 0.5) * 4,
-                                (Math.random() - 0.5) * 4,
-                                bullet.color,
-                                5
-                            ));
-                        }
-
-                        // HPが0になったら爆発
-                        if (player.hp <= 0) {
-                            winner = null; // 両方爆発したので勝者なし（引き分け）
-                        }
-                    }
-                }
-            });
-        });
-
-        bullets = bullets.filter(b => b.alive);
-
-        // 生き残ったプレイヤーの移動
-        players.forEach(player => player.update(canvas.width, canvas.height));
-
-        // UI更新
-        updateUI();
-
-        // 弾が全て消えたらWIN表示
-        if (waitingForBulletsClear && bullets.length === 0 && !winnerDeclared) {
-            winnerDeclared = true;
-
-            // 少し待ってから表示
-            setTimeout(() => {
-                // 生き残ったプレイヤーを確認
-                const survivingPlayer = players.find(p => p.alive);
-                if (survivingPlayer) {
-                    showWinner(survivingPlayer);
-                } else {
-                    // 両方爆発した場合は引き分け表示
-                    showDraw();
-                }
-            }, 500);
-        }
     } else {
         // ゲーム中のパーティクル更新
         particles.forEach(p => p.update());
@@ -1493,22 +1501,19 @@ function checkBulletCollisions() {
 function showDraw() {
     playDrawSound();
 
-    const overlay = document.getElementById('resultOverlay');
-    const resultText = document.getElementById('resultText');
+    // Canvas内に結果を表示（録画に含める）
+    showResultOnCanvas = true;
+    resultDisplayData = {
+        text: 'DRAW',
+        color: '#AAAAAA',
+        glowColor: '#888888',
+        animationProgress: 0
+    };
 
-    resultText.textContent = 'DRAW';
-    resultText.style.background = 'linear-gradient(45deg, #888888, #AAAAAA)';
-    resultText.style.webkitBackgroundClip = 'text';
-    resultText.style.webkitTextFillColor = 'transparent';
-    resultText.style.backgroundClip = 'text';
-    resultText.style.filter = 'drop-shadow(0 0 10px #666666) drop-shadow(0 0 20px #888888)';
-
-    resultText.style.animation = 'none';
-    resultText.offsetHeight;
-    resultText.style.animation = 'resultPop 0.5s ease-out';
-
-    overlay.classList.add('show');
-    // ゲーム終了（自動ラウンド遷移なし）
+    // 少し待ってから録画を停止（DRAW表示を含めるため）
+    setTimeout(() => {
+        stopRecording();
+    }, 2500);
 }
 
 function updateEffects() {
@@ -1548,46 +1553,18 @@ function draw() {
         ctx.translate(shakeX, shakeY);
     }
 
-    // Clear canvas
-    ctx.fillStyle = '#0d1b2a';
+    // Clear canvas（シンプルな単色背景）
+    ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(-50, -50, canvas.width + 100, canvas.height + 100);
 
-    // Draw grid pattern (subtle background)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-    ctx.lineWidth = 1;
-    const gridSize = 50;
-    for (let x = 0; x < canvas.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-    }
-    for (let y = 0; y < canvas.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-    }
-
-    // Draw explosion rings
+    // Draw explosion rings（シンプルな円）
     explosionRings.forEach(ring => {
         ctx.globalAlpha = ring.life;
         ctx.beginPath();
         ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
         ctx.strokeStyle = ring.color;
-        ctx.lineWidth = ring.lineWidth * ring.life;
+        ctx.lineWidth = 2;
         ctx.stroke();
-
-        // 内側のグロー
-        const gradient = ctx.createRadialGradient(
-            ring.x, ring.y, ring.radius * 0.8,
-            ring.x, ring.y, ring.radius
-        );
-        gradient.addColorStop(0, 'transparent');
-        gradient.addColorStop(0.5, ring.color + '40');
-        gradient.addColorStop(1, ring.color + '00');
-        ctx.fillStyle = gradient;
-        ctx.fill();
         ctx.globalAlpha = 1;
     });
 
@@ -1622,6 +1599,68 @@ function draw() {
         ctx.fillStyle = screenFlash.color;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.globalAlpha = 1;
+    }
+
+    // ===== HP表示（Canvas上部） =====
+    drawHPDisplay();
+
+    // ===== 結果表示（WIN/DRAW） =====
+    if (showResultOnCanvas) {
+        drawResultOnCanvas();
+    }
+}
+
+// HP表示をCanvas内に描画
+function drawHPDisplay() {
+    const padding = 20;
+    const topY = 35;
+
+    // 背景バー
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, canvas.width, 60);
+
+    // Player 1 (左側)
+    if (players[0]) {
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = COLORS.player1.main;
+        ctx.textAlign = 'center';
+        ctx.fillText('P1', padding + 30, topY - 12);
+
+        ctx.font = 'bold 32px sans-serif';
+        ctx.fillText(players[0].hp.toString(), padding + 30, topY + 15);
+    }
+
+    // Player 2 (右側)
+    if (players[1]) {
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = COLORS.player2.main;
+        ctx.textAlign = 'center';
+        ctx.fillText('P2', canvas.width - padding - 30, topY - 12);
+
+        ctx.font = 'bold 32px sans-serif';
+        ctx.fillText(players[1].hp.toString(), canvas.width - padding - 30, topY + 15);
+    }
+}
+
+// 結果をCanvas内に描画
+function drawResultOnCanvas() {
+    // 背景オーバーレイ
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // テキスト描画
+    ctx.font = 'bold 48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = resultDisplayData.color;
+
+    // 2行に分けて描画
+    const lines = resultDisplayData.text.split('\n');
+    if (lines.length === 2) {
+        ctx.fillText(lines[0], canvas.width / 2, canvas.height / 2 - 30);
+        ctx.fillText(lines[1], canvas.width / 2, canvas.height / 2 + 30);
+    } else {
+        ctx.fillText(resultDisplayData.text, canvas.width / 2, canvas.height / 2);
     }
 }
 

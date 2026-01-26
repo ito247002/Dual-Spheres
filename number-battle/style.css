@@ -6,24 +6,16 @@
 }
 
 :root {
-    /* Pastel Colors */
-    --pink-light: #FFB5C5;
-    --pink-main: #FF8FAB;
-    --pink-dark: #E75480;
-    --mint-light: #B5FFCF;
-    --mint-main: #7DFFB3;
-    --mint-dark: #3CB371;
-    
-    /* UI Colors */
-    --bg-dark: #1a1a2e;
-    --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    /* Simple Colors */
+    --red-main: #E74C3C;
+    --blue-main: #3498DB;
+    --bg-dark: #1a1a1a;
     --text-light: #ffffff;
-    --text-glow: rgba(255, 255, 255, 0.8);
 }
 
 body {
-    font-family: 'Outfit', sans-serif;
-    background: var(--bg-gradient);
+    font-family: sans-serif;
+    background: #2c2c2c;
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -31,21 +23,19 @@ body {
     overflow: hidden;
 }
 
-/* ===== Game Container (9:16 Aspect Ratio) ===== */
+/* ===== Game Container (1:1 Square) ===== */
 .game-container {
     width: 100%;
     max-width: 540px;
     height: 100vh;
-    max-height: 960px;
-    background: linear-gradient(180deg, #0d1b2a 0%, #1b263b 50%, #0d1b2a 100%);
+    max-height: 600px;
+    background: #1a1a1a;
     position: relative;
     display: flex;
     flex-direction: column;
-    border-radius: 20px;
+    border-radius: 8px;
     overflow: hidden;
-    box-shadow: 
-        0 0 60px rgba(255, 143, 171, 0.3),
-        0 0 120px rgba(125, 255, 179, 0.2);
+    border: 2px solid #333;
 }
 
 /* ===== Header ===== */
@@ -194,4 +184,45 @@ body {
     .timer {
         font-size: 22px;
     }
+}
+
+/* ===== Start Overlay ===== */
+.start-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    transition: opacity 0.5s ease;
+}
+
+.start-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.start-button {
+    font-family: sans-serif;
+    font-size: 24px;
+    font-weight: bold;
+    padding: 15px 40px;
+    border: 2px solid #555;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #444;
+    color: white;
+    transition: background 0.2s ease;
+}
+
+.start-button:hover {
+    background: #555;
+}
+
+.start-button:active {
+    background: #333;
 }
