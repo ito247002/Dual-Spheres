@@ -1,0 +1,197 @@
+/* ===== Base Reset & Variables ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* Pastel Colors */
+    --pink-light: #FFB5C5;
+    --pink-main: #FF8FAB;
+    --pink-dark: #E75480;
+    --mint-light: #B5FFCF;
+    --mint-main: #7DFFB3;
+    --mint-dark: #3CB371;
+    
+    /* UI Colors */
+    --bg-dark: #1a1a2e;
+    --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    --text-light: #ffffff;
+    --text-glow: rgba(255, 255, 255, 0.8);
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg-gradient);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* ===== Game Container (9:16 Aspect Ratio) ===== */
+.game-container {
+    width: 100%;
+    max-width: 540px;
+    height: 100vh;
+    max-height: 960px;
+    background: linear-gradient(180deg, #0d1b2a 0%, #1b263b 50%, #0d1b2a 100%);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 
+        0 0 60px rgba(255, 143, 171, 0.3),
+        0 0 120px rgba(125, 255, 179, 0.2);
+}
+
+/* ===== Header ===== */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    z-index: 10;
+}
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.player-name {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.player-hp {
+    font-size: 48px;
+    font-weight: 900;
+    text-shadow: 0 0 20px currentColor;
+}
+
+.player1 .player-name,
+.player1 .player-hp {
+    color: var(--pink-main);
+}
+
+.player2 .player-name,
+.player2 .player-hp {
+    color: var(--mint-main);
+}
+
+.vs-text {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--text-light);
+    text-shadow: 0 0 15px var(--text-glow);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.round-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.round-score {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--text-light);
+    text-shadow: 0 0 15px var(--text-glow);
+    background: linear-gradient(45deg, var(--pink-main), var(--mint-main));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+/* ===== Canvas ===== */
+#gameCanvas {
+    flex: 1;
+    width: 100%;
+    display: block;
+}
+
+/* ===== Footer ===== */
+.game-footer {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    border-top: 2px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+    z-index: 10;
+}
+
+.timer {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-light);
+    text-shadow: 0 0 10px var(--text-glow);
+    letter-spacing: 3px;
+}
+
+/* ===== Result Overlay ===== */
+.result-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 100;
+}
+
+.result-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.result-text {
+    font-size: 80px;
+    font-weight: 900;
+    text-transform: uppercase;
+    background: linear-gradient(45deg, var(--pink-main), var(--mint-main));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: resultPop 0.5s ease-out;
+}
+
+@keyframes resultPop {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* ===== Responsive ===== */
+@media (max-height: 700px) {
+    .player-hp {
+        font-size: 36px;
+    }
+    .timer {
+        font-size: 22px;
+    }
+}
