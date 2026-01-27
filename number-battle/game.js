@@ -18,7 +18,7 @@ const CONFIG = {
     AI_DIRECTION_CHANGE_INTERVAL: 500, // 方向転換のインターバル（ms）
     // プレイヤー衝突設定
     PLAYER_COLLISION_DAMAGE: 5,       // 衝突時のダメージ
-    PLAYER_COLLISION_COOLDOWN: 500,   // 衝突ダメージのクールダウン（ms）
+    PLAYER_COLLISION_COOLDOWN: 0,   // 衝突ダメージのクールダウン（ms）
 };
 
 // ===== Item Types (拡張可能) =====
@@ -57,20 +57,22 @@ const ITEM_TYPES = {
 // ===== Player Configurations (個性) =====
 const PLAYER_CONFIGS = {
     player1: {
-        // ピンク: 素早く動き、少ない弾を高速連射するスピードタイプ
-        speed: 6,
-        shootInterval: 500,      // 連射が速い
-        bulletsPerShot: 3,       // 弾数少なめ
-        bulletSpeed: 7,          // 弾が速い
-        spreadAngle: Math.PI / 8, // 狭い扇形
+        // 赤: スピード型 - 高速移動で少数の弾を精密射撃
+        speed: 7,
+        shootInterval: 450,      // 連射が速い
+        bulletsPerShot: 4,       // 弾数少なめ
+        bulletSpeed: 6.5,        // 弾が速い
+        spreadAngle: Math.PI / 12, // 狭い扇形（15度）
+        radius: 20,              // 小さめ（回避しやすい）
     },
     player2: {
-        // ミント: ゆっくり動き、大量の弾をばらまくパワータイプ
-        speed: 2.5,
-        shootInterval: 800,      // 連射が遅い
-        bulletsPerShot: 8,       // 弾数多め
-        bulletSpeed: 4,          // 弾が遅い
-        spreadAngle: Math.PI / 2, // 広い扇形
+        // 青: ショットガン型 - 中速移動で超広範囲に大量の弾をばらまく
+        speed: 4.5,
+        shootInterval: 600,      // 中間的な連射速度
+        bulletsPerShot: 12,      // 弾数多め
+        bulletSpeed: 3.5,        // 弾が遅め
+        spreadAngle: Math.PI * 2 / 3, // 広い扇形（120度）
+        radius: 25,              // 中サイズ
     },
 };
 
@@ -101,7 +103,7 @@ function initAudio() {
 
         // マスターゲインノード（すべての音声をここに集約）
         masterGain = audioCtx.createGain();
-        masterGain.gain.value = 1.0;
+        masterGain.gain.value = 0.3;
 
         // スピーカー出力
         masterGain.connect(audioCtx.destination);
@@ -484,12 +486,12 @@ class Player {
         this.x = x;
         this.y = y;
         this.hp = CONFIG.INITIAL_HP;
-        this.radius = CONFIG.PLAYER_RADIUS;
         this.color = color;
         this.alive = true;
 
         // プレイヤーごとの個性設定（ベース値）
         const config = PLAYER_CONFIGS[id];
+        this.radius = config.radius || CONFIG.PLAYER_RADIUS;  // 個別サイズ優先
         this.baseSpeed = config.speed;
         this.baseShootInterval = config.shootInterval;
         this.bulletsPerShot = config.bulletsPerShot;
@@ -646,9 +648,10 @@ class Player {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // HP Text
+        // HP Text（サイズに応じたフォント）
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 28px sans-serif';
+        const fontSize = Math.floor(this.radius * 1.1);
+        ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.hp.toString(), this.x, this.y);
@@ -1136,8 +1139,6 @@ function resetRound() {
 
     updateUI();
     document.getElementById('resultOverlay').classList.remove('show');
-
-    playRoundStartSound();
 }
 
 // 旧互換性のためのエイリアス
