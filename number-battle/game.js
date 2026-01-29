@@ -57,22 +57,22 @@ const ITEM_TYPES = {
 // ===== Player Configurations (個性) =====
 const PLAYER_CONFIGS = {
     player1: {
-        // 赤: スピード型 - 高速移動で少数の弾を精密射撃
-        speed: 7,
-        shootInterval: 450,      // 連射が速い
-        bulletsPerShot: 4,       // 弾数少なめ
-        bulletSpeed: 6.5,        // 弾が速い
-        spreadAngle: Math.PI / 12, // 狭い扇形（15度）
-        radius: 20,              // 小さめ（回避しやすい）
+        // スピード型 - 戦闘力: 135.17
+        speed: 8,
+        shootInterval: 300,
+        bulletsPerShot: 2,
+        bulletSpeed: 6,
+        spreadAngle: Math.PI / 12.00, // 15度
+        radius: 25,
     },
     player2: {
-        // 青: ショットガン型 - 中速移動で超広範囲に大量の弾をばらまく
-        speed: 4.5,
-        shootInterval: 600,      // 中間的な連射速度
-        bulletsPerShot: 12,      // 弾数多め
-        bulletSpeed: 3.5,        // 弾が遅め
-        spreadAngle: Math.PI * 2 / 3, // 広い扇形（120度）
-        radius: 25,              // 中サイズ
+        // バランス型 - 戦闘力: 95.59
+        speed: 5.5,
+        shootInterval: 550,
+        bulletsPerShot: 6,
+        bulletSpeed: 5,
+        spreadAngle: Math.PI / 4.00, // 45度
+        radius: 35,
     },
 };
 

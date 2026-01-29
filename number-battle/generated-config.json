@@ -1,0 +1,22 @@
+{
+  "player1": {
+    "type": "スピード型",
+    "speed": 8,
+    "shootInterval": 300,
+    "bulletCount": 2,
+    "bulletSpeed": 6,
+    "spreadAngle": 15,
+    "radius": 25
+  },
+  "player2": {
+    "type": "バランス型",
+    "speed": 5.5,
+    "shootInterval": 550,
+    "bulletCount": 6,
+    "bulletSpeed": 5,
+    "spreadAngle": 45,
+    "radius": 35
+  },
+  "power1": 135.16666666666669,
+  "power2": 95.5909090909091
+}
