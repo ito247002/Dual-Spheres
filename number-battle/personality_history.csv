@@ -1,0 +1,5 @@
+timestamp,player1_type,player1_speed,player1_shootInterval,player1_bulletCount,player1_bulletSpeed,player1_spreadAngle,player1_radius,player1_isSwordsman,player1_swordLength,player1_swordDamage,player1_swordSwingSpeed,player1_swordHitCooldown,player2_type,player2_speed,player2_shootInterval,player2_bulletCount,player2_bulletSpeed,player2_spreadAngle,player2_radius
+2026-01-30T00:00:00Z,スピード型,8,300,2,6,15,25,false,0,0,0,0,バランス型,5.5,550,6,5,45,35
+2026-01-30T04:38:14.109Z,スナイパー型,4.5,800,2,8.5,15,20,false,0,0,0,0,スナイパー型,6,800,2,7,0,30
+2026-01-30T04:50:38Z,ショットガン型,3.5,650,11,4.5,100,35,false,0,0,0,0,パワー型,4,750,4,5.5,37.5,40
+2026-01-30T12:00:00Z,剣士型,5.5,0,0,0,0,25,true,60,8,0.2,250,スピード型,7.5,350,2,7.5,15,20

@@ -57,22 +57,27 @@ const ITEM_TYPES = {
 // ===== Player Configurations (個性) =====
 const PLAYER_CONFIGS = {
     player1: {
-        // スピード型 - 戦闘力: 135.17
-        speed: 8,
-        shootInterval: 300,
-        bulletsPerShot: 2,
-        bulletSpeed: 6,
-        spreadAngle: Math.PI / 12.00, // 15度
+        // 剣士型
+        speed: 5.5,
+        shootInterval: 0,  // 射撃しない
+        bulletsPerShot: 0,
+        bulletSpeed: 0,
+        spreadAngle: 0,
         radius: 25,
+        isSwordsman: true,
+        swordLength: 60,
+        swordDamage: 8,
+        swordSwingSpeed: 0.2,
+        swordHitCooldown: 250,
     },
     player2: {
-        // バランス型 - 戦闘力: 95.59
-        speed: 5.5,
-        shootInterval: 550,
-        bulletsPerShot: 6,
-        bulletSpeed: 5,
-        spreadAngle: Math.PI / 4.00, // 45度
-        radius: 35,
+        // スピード型
+        speed: 7.5,
+        shootInterval: 350,
+        bulletsPerShot: 2,
+        bulletSpeed: 7.5,
+        spreadAngle: Math.PI / 12, // 15度
+        radius: 20,
     },
 };
 
@@ -431,6 +436,124 @@ function playDrawSound() {
     });
 }
 
+// 剣振り回し音 - シャキン・ヒュンという風切り音
+function playSwordSwingSound(isPlayer1) {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+
+    // 風切り音（ノイズベース）
+    const bufferSize = audioCtx.sampleRate * 0.15;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        // 最初は強く、徐々に減衰
+        const envelope = Math.exp(-i / (bufferSize * 0.3)) * (1 - i / bufferSize);
+        data[i] = (Math.random() * 2 - 1) * envelope;
+    }
+
+    const noise = audioCtx.createBufferSource();
+    const noiseGain = audioCtx.createGain();
+    const noiseFilter = audioCtx.createBiquadFilter();
+
+    noise.buffer = buffer;
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = isPlayer1 ? 2500 : 2000;
+    noiseFilter.Q.value = 2;
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(getAudioOutput());
+
+    noiseGain.gain.setValueAtTime(0.08, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+    noise.start(t);
+
+    // 金属的な響き
+    const osc = audioCtx.createOscillator();
+    const oscGain = audioCtx.createGain();
+
+    osc.connect(oscGain);
+    oscGain.connect(getAudioOutput());
+
+    const baseFreq = isPlayer1 ? 1200 : 1000;
+    osc.frequency.setValueAtTime(baseFreq, t);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, t + 0.1);
+    osc.type = 'triangle';
+
+    oscGain.gain.setValueAtTime(0.04, t);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+    osc.start(t);
+    osc.stop(t + 0.1);
+}
+
+// 剣ヒット音 - ザシュッという斬撃音
+function playSwordHitSound() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+
+    // インパクトノイズ
+    const bufferSize = audioCtx.sampleRate * 0.1;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        const envelope = Math.exp(-i / (bufferSize * 0.1));
+        data[i] = (Math.random() * 2 - 1) * envelope;
+    }
+
+    const noise = audioCtx.createBufferSource();
+    const noiseGain = audioCtx.createGain();
+    const noiseFilter = audioCtx.createBiquadFilter();
+
+    noise.buffer = buffer;
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.value = 1000;
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(getAudioOutput());
+
+    noiseGain.gain.setValueAtTime(0.15, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+    noise.start(t);
+
+    // 低音のインパクト
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+
+    osc1.connect(gain1);
+    gain1.connect(getAudioOutput());
+
+    osc1.frequency.setValueAtTime(200, t);
+    osc1.frequency.exponentialRampToValueAtTime(80, t + 0.1);
+    osc1.type = 'sine';
+
+    gain1.gain.setValueAtTime(0.15, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+    osc1.start(t);
+    osc1.stop(t + 0.1);
+
+    // 高音の金属音
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+
+    osc2.connect(gain2);
+    gain2.connect(getAudioOutput());
+
+    osc2.frequency.setValueAtTime(800, t);
+    osc2.frequency.exponentialRampToValueAtTime(400, t + 0.05);
+    osc2.type = 'sawtooth';
+
+    gain2.gain.setValueAtTime(0.08, t);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+    osc2.start(t);
+    osc2.stop(t + 0.08);
+}
+
 // ===== Game State =====
 let canvas, ctx;
 let gameRunning = false;
@@ -497,6 +620,16 @@ class Player {
         this.bulletsPerShot = config.bulletsPerShot;
         this.bulletSpeed = config.bulletSpeed;
         this.spreadAngle = config.spreadAngle;
+
+        // 剣士タイプ用のプロパティ
+        this.isSwordsman = config.isSwordsman || false;
+        this.swordLength = config.swordLength || 50;
+        this.swordDamage = config.swordDamage || 5;
+        this.swordSwingSpeed = config.swordSwingSpeed || 0.15;  // ラジアン/フレーム
+        this.swordAngle = Math.random() * Math.PI * 2;  // 現在の剣の角度
+        this.lastSwordHitTime = 0;  // 最後にヒットした時間（クールダウン用）
+        this.swordHitCooldown = config.swordHitCooldown || 300;  // ヒットのクールダウン(ms)
+        this.lastSwordSwingSound = 0;  // 最後に振り回し音を再生した時間
 
         // アイテム効果用の倍率（デフォルト1倍）
         this.speedMultiplier = 1;
@@ -610,7 +743,7 @@ class Player {
         // それ以外は何もしない（壁で反射するランダムな動きを継続）
     }
 
-    update(canvasWidth, canvasHeight) {
+    update(canvasWidth, canvasHeight, timestamp) {
         if (!this.alive) return;
 
         // 速度を現在のspeedに合わせて正規化
@@ -634,10 +767,29 @@ class Player {
             this.vy *= -1;
             this.y = Math.max(topBoundary + this.radius, Math.min(canvasHeight - this.radius, this.y));
         }
+
+        // 剣士の場合、剣を回転
+        if (this.isSwordsman) {
+            this.swordAngle += this.swordSwingSpeed;
+            if (this.swordAngle > Math.PI * 2) {
+                this.swordAngle -= Math.PI * 2;
+            }
+
+            // 一定間隔で振り回し音を再生
+            if (timestamp - this.lastSwordSwingSound > 400) {
+                this.lastSwordSwingSound = timestamp;
+                playSwordSwingSound(this.id === 'player1');
+            }
+        }
     }
 
     draw(ctx) {
         if (!this.alive) return;
+
+        // 剣士の場合、剣を描画（プレイヤーの後ろに描画するため先に描く）
+        if (this.isSwordsman) {
+            this.drawSword(ctx);
+        }
 
         // シンプルな単色円
         ctx.beginPath();
@@ -655,6 +807,101 @@ class Player {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.hp.toString(), this.x, this.y);
+    }
+
+    // 剣を描画
+    drawSword(ctx) {
+        const swordStartX = this.x + Math.cos(this.swordAngle) * this.radius;
+        const swordStartY = this.y + Math.sin(this.swordAngle) * this.radius;
+        const swordEndX = this.x + Math.cos(this.swordAngle) * (this.radius + this.swordLength);
+        const swordEndY = this.y + Math.sin(this.swordAngle) * (this.radius + this.swordLength);
+
+        // 剣の軌跡エフェクト（残像）
+        ctx.save();
+        for (let i = 3; i >= 0; i--) {
+            const trailAngle = this.swordAngle - this.swordSwingSpeed * (i + 1) * 2;
+            const trailStartX = this.x + Math.cos(trailAngle) * this.radius;
+            const trailStartY = this.y + Math.sin(trailAngle) * this.radius;
+            const trailEndX = this.x + Math.cos(trailAngle) * (this.radius + this.swordLength);
+            const trailEndY = this.y + Math.sin(trailAngle) * (this.radius + this.swordLength);
+
+            ctx.globalAlpha = 0.1 * (3 - i);
+            ctx.beginPath();
+            ctx.moveTo(trailStartX, trailStartY);
+            ctx.lineTo(trailEndX, trailEndY);
+            ctx.strokeStyle = this.color.light;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // 剣本体（刀身）
+        ctx.beginPath();
+        ctx.moveTo(swordStartX, swordStartY);
+        ctx.lineTo(swordEndX, swordEndY);
+
+        // グラデーションで刀身を表現
+        const gradient = ctx.createLinearGradient(swordStartX, swordStartY, swordEndX, swordEndY);
+        gradient.addColorStop(0, '#888888');
+        gradient.addColorStop(0.3, '#FFFFFF');
+        gradient.addColorStop(0.7, '#DDDDDD');
+        gradient.addColorStop(1, '#AAAAAA');
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // 刀身の輪郭
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 剣先のハイライト
+        ctx.beginPath();
+        ctx.arc(swordEndX, swordEndY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+    }
+
+    // 剣の当たり判定（敵プレイヤーとの衝突チェック）
+    checkSwordCollision(enemy) {
+        if (!this.isSwordsman || !this.alive || !enemy.alive) return false;
+
+        // 剣の先端位置
+        const swordEndX = this.x + Math.cos(this.swordAngle) * (this.radius + this.swordLength);
+        const swordEndY = this.y + Math.sin(this.swordAngle) * (this.radius + this.swordLength);
+
+        // 剣の線分と敵の円との衝突判定
+        // 剣の始点
+        const swordStartX = this.x + Math.cos(this.swordAngle) * this.radius;
+        const swordStartY = this.y + Math.sin(this.swordAngle) * this.radius;
+
+        // 線分と円の最近接点を計算
+        const dx = swordEndX - swordStartX;
+        const dy = swordEndY - swordStartY;
+        const fx = swordStartX - enemy.x;
+        const fy = swordStartY - enemy.y;
+
+        const a = dx * dx + dy * dy;
+        const b = 2 * (fx * dx + fy * dy);
+        const c = (fx * fx + fy * fy) - enemy.radius * enemy.radius;
+
+        let discriminant = b * b - 4 * a * c;
+
+        if (discriminant >= 0) {
+            discriminant = Math.sqrt(discriminant);
+            const t1 = (-b - discriminant) / (2 * a);
+            const t2 = (-b + discriminant) / (2 * a);
+
+            // tが0～1の範囲内なら線分上で交差
+            if ((t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     takeDamage(amount) {
@@ -947,6 +1194,9 @@ class Particle {
 
 // ===== Shooting Logic =====
 function shoot(player, target, timestamp) {
+    // 剣士タイプは弾を撃たない
+    if (player.isSwordsman) return;
+
     const key = player.id;
     // プレイヤーごとの発射間隔を使用
     if (timestamp - lastShootTime[key] < player.shootInterval) return;
@@ -1289,7 +1539,49 @@ function gameLoop(timestamp) {
         }
 
         // Update players
-        players.forEach(player => player.update(canvas.width, canvas.height));
+        players.forEach(player => player.update(canvas.width, canvas.height, timestamp));
+
+        // 剣の当たり判定（剣士タイプの場合）
+        players.forEach((player, index) => {
+            if (player.isSwordsman && player.alive) {
+                const enemy = players[1 - index];
+                if (enemy.alive && player.checkSwordCollision(enemy)) {
+                    // クールダウンチェック
+                    if (timestamp - player.lastSwordHitTime > player.swordHitCooldown) {
+                        player.lastSwordHitTime = timestamp;
+                        enemy.takeDamage(player.swordDamage);
+                        playSwordHitSound();
+
+                        // ヒットエフェクト（斬撃パーティクル）
+                        const hitAngle = player.swordAngle;
+                        for (let i = 0; i < 8; i++) {
+                            const particleAngle = hitAngle + (Math.random() - 0.5) * 1;
+                            const speed = 3 + Math.random() * 5;
+                            particles.push(new Particle(
+                                enemy.x, enemy.y,
+                                Math.cos(particleAngle) * speed,
+                                Math.sin(particleAngle) * speed,
+                                '#FFFFFF',
+                                6 + Math.random() * 6,
+                                0.04
+                            ));
+                        }
+                        // 斬撃ラインエフェクト
+                        for (let i = 0; i < 3; i++) {
+                            const lineAngle = hitAngle + (Math.random() - 0.5) * 0.5;
+                            particles.push(new Particle(
+                                enemy.x, enemy.y,
+                                Math.cos(lineAngle) * 8,
+                                Math.sin(lineAngle) * 8,
+                                player.color.light,
+                                3,
+                                0.06
+                            ));
+                        }
+                    }
+                }
+            }
+        });
 
         // プレイヤー同士の衝突判定
         if (players[0].alive && players[1].alive) {

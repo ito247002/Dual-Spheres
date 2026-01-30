@@ -1,6 +1,6 @@
 ---
 name: player-personality-generator
-description: プレイヤーの個性（速度、連射間隔、弾数、弾速、扇形角度、サイズ）をランダムに生成し、game.jsを更新、CSVに履歴を記録する。重複を避けて新しい組み合わせを生成。
+description: プレイヤーの個性（速度、連射間隔、弾数、弾速、扇形角度、サイズ、剣士パラメータ）をランダムに生成し、game.jsを更新、CSVに履歴を記録する。重複を避けて新しい組み合わせを生成。剣士タイプは弾を撃たず剣を振り回す近接戦闘型。
 tools: Read, Edit, Write, Bash
 model: sonnet
 permissionMode: acceptEdits
@@ -41,17 +41,24 @@ timestamp,player1_type,player1_speed,player1_shootInterval,player1_bulletCount,p
 | **バランス型** | 全てのパラメータが中間 |
 | **スナイパー型** | 中速移動、極少弾数(1-2発)、超高速弾、狭範囲 |
 | **ショットガン型** | 中速移動、多弾数、低速弾、超広範囲 |
+| **剣士型** | 高速移動、弾なし、剣を振り回して接近戦（近接攻撃タイプ） |
 
 ### 4. パラメータ範囲
 
 ```javascript
 const RANGES = {
+    // 射撃タイプ用
     speed: { min: 2, max: 8, step: 0.5 },           // 移動速度
     shootInterval: { min: 300, max: 1000, step: 50 }, // 連射間隔(ms)
     bulletCount: { min: 1, max: 12, step: 1 },      // 同時発射数
     bulletSpeed: { min: 3, max: 9, step: 0.5 },     // 弾速
     spreadAngle: { min: 0, max: 120, step: 15 },    // 扇形角度(度)
-    radius: { min: 20, max: 50, step: 5 }           // プレイヤーサイズ
+    radius: { min: 20, max: 50, step: 5 },          // プレイヤーサイズ
+    // 剣士タイプ用
+    swordLength: { min: 40, max: 80, step: 5 },     // 剣の長さ
+    swordDamage: { min: 3, max: 10, step: 1 },      // 剣のダメージ
+    swordSwingSpeed: { min: 0.10, max: 0.25, step: 0.01 }, // 回転速度
+    swordHitCooldown: { min: 200, max: 500, step: 50 }     // ヒットクールダウン(ms)
 };
 ```
 
