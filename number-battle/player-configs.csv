@@ -1,3 +1,5 @@
 timestamp,player1_type,player1_speed,player1_shootInterval,player1_bulletCount,player1_bulletSpeed,player1_spreadAngle,player1_radius,player2_type,player2_speed,player2_shootInterval,player2_bulletCount,player2_bulletSpeed,player2_spreadAngle,player2_radius
 2026-01-27T22:46:19Z,スピード型,7,450,4,6.5,15,20,ショットガン型,4.5,600,12,3.5,120,25
 2026-01-29T00:01:02Z,スピード型,8,300,2,6,15,25,バランス型,5.5,550,6,5,45,35
+2026-02-01T00:00:00Z,パワー型,3.5,900,9,4,90,45,スナイパー型,5,800,1,9,0,30
+2026-02-02T00:00:00Z,レーザータイプ,4,1200,1,0,0,30,スピード弾幕型,5.5,400,5,6,45,25

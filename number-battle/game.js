@@ -57,27 +57,26 @@ const ITEM_TYPES = {
 // ===== Player Configurations (個性) =====
 const PLAYER_CONFIGS = {
     player1: {
-        // 剣士型
-        speed: 5.5,
-        shootInterval: 0,  // 射撃しない
-        bulletsPerShot: 0,
-        bulletSpeed: 0,
-        spreadAngle: 0,
-        radius: 25,
-        isSwordsman: true,
-        swordLength: 60,
-        swordDamage: 8,
-        swordSwingSpeed: 0.2,
-        swordHitCooldown: 250,
+        // レーザータイプ（ビームライフル）
+        isLaserType: true,
+        speed: 4,
+        shootInterval: 1200,      // 発射間隔（長め、高火力）
+        bulletsPerShot: 1,        // 未使用（ビームは1本）
+        bulletSpeed: 0,           // 未使用（ビームは即着）
+        spreadAngle: 0,           // 未使用
+        radius: 30,
+        beamLength: 400,          // ビームの長さ（画面を横断）
+        beamDamage: 5,           // ダメージ
+        rifleLength: 45,          // ライフルの長さ
     },
     player2: {
-        // スピード型
-        speed: 7.5,
-        shootInterval: 350,
-        bulletsPerShot: 2,
-        bulletSpeed: 7.5,
-        spreadAngle: Math.PI / 12, // 15度
-        radius: 20,
+        // スピード弾幕型
+        speed: 5.5,
+        shootInterval: 400,
+        bulletsPerShot: 5,
+        bulletSpeed: 6,
+        spreadAngle: Math.PI / 4, // 45度
+        radius: 25,
     },
 };
 
@@ -436,6 +435,99 @@ function playDrawSound() {
     });
 }
 
+// ビームライフル発射音 - ガンダム風「ビューン」
+function playBeamRifleSound(isPlayer1) {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+
+    // メイン音: 高周波から低周波へのスイープ（ビューン）
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    const filter1 = audioCtx.createBiquadFilter();
+
+    osc1.connect(filter1);
+    filter1.connect(gain1);
+    gain1.connect(getAudioOutput());
+
+    // プレイヤーごとに音程を変える
+    const startFreq = isPlayer1 ? 1800 : 1400;
+    osc1.frequency.setValueAtTime(startFreq, t);
+    osc1.frequency.exponentialRampToValueAtTime(startFreq * 0.3, t + 0.25);
+
+    osc1.type = 'sawtooth';
+    filter1.type = 'lowpass';
+    filter1.frequency.setValueAtTime(6000, t);
+    filter1.frequency.exponentialRampToValueAtTime(800, t + 0.25);
+    filter1.Q.value = 3;
+
+    gain1.gain.setValueAtTime(0.15, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+    osc1.start(t);
+    osc1.stop(t + 0.3);
+
+    // アタック音（ピッという立ち上がり）
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+
+    osc2.connect(gain2);
+    gain2.connect(getAudioOutput());
+
+    osc2.frequency.setValueAtTime(isPlayer1 ? 2500 : 2000, t);
+    osc2.frequency.exponentialRampToValueAtTime(isPlayer1 ? 1200 : 1000, t + 0.05);
+    osc2.type = 'sine';
+
+    gain2.gain.setValueAtTime(0.12, t);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+
+    osc2.start(t);
+    osc2.stop(t + 0.05);
+
+    // サブ音: 低周波のうなり
+    const osc3 = audioCtx.createOscillator();
+    const gain3 = audioCtx.createGain();
+
+    osc3.connect(gain3);
+    gain3.connect(getAudioOutput());
+
+    osc3.frequency.setValueAtTime(isPlayer1 ? 200 : 180, t);
+    osc3.frequency.exponentialRampToValueAtTime(80, t + 0.2);
+    osc3.type = 'sine';
+
+    gain3.gain.setValueAtTime(0.1, t);
+    gain3.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+    osc3.start(t);
+    osc3.stop(t + 0.2);
+
+    // ノイズ成分（シャーという音）
+    const bufferSize = audioCtx.sampleRate * 0.15;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        const envelope = Math.exp(-i / (bufferSize * 0.4)) * (1 - Math.pow(i / bufferSize, 2));
+        data[i] = (Math.random() * 2 - 1) * envelope;
+    }
+
+    const noise = audioCtx.createBufferSource();
+    const noiseGain = audioCtx.createGain();
+    const noiseFilter = audioCtx.createBiquadFilter();
+
+    noise.buffer = buffer;
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 2500;
+    noiseFilter.Q.value = 1.5;
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(getAudioOutput());
+
+    noiseGain.gain.setValueAtTime(0.06, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+    noise.start(t);
+}
+
 // 剣振り回し音 - シャキン・ヒュンという風切り音
 function playSwordSwingSound(isPlayer1) {
     if (!audioCtx) return;
@@ -597,6 +689,7 @@ let resultDisplayData = {
 // ===== Game Objects =====
 let players = [];
 let bullets = [];
+let beams = [];  // レーザービーム用
 let particles = [];
 let explosionRings = [];
 let screenFlash = { active: false, intensity: 0, color: '#FFFFFF' };
@@ -630,6 +723,13 @@ class Player {
         this.lastSwordHitTime = 0;  // 最後にヒットした時間（クールダウン用）
         this.swordHitCooldown = config.swordHitCooldown || 300;  // ヒットのクールダウン(ms)
         this.lastSwordSwingSound = 0;  // 最後に振り回し音を再生した時間
+
+        // レーザータイプ用のプロパティ
+        this.isLaserType = config.isLaserType || false;
+        this.beamLength = config.beamLength || 400;  // ビームの長さ
+        this.beamDamage = config.beamDamage || 8;    // ビームのダメージ
+        this.rifleLength = config.rifleLength || 40;  // ライフルの長さ
+        this.aimAngle = 0;  // 狙いの角度（敵方向）
 
         // アイテム効果用の倍率（デフォルト1倍）
         this.speedMultiplier = 1;
@@ -729,6 +829,11 @@ class Player {
     updateAI(target, enemyBullets, gameItems, timestamp, canvasWidth, canvasHeight) {
         if (!this.alive) return;
 
+        // レーザータイプの場合、敵に向けてaimAngleを更新
+        if (this.isLaserType && target && target.alive) {
+            this.aimAngle = Math.atan2(target.y - this.y, target.x - this.x);
+        }
+
         // アイテムをチェック（近くにあれば取りに行く）
         const nearestItem = this.findNearestItem(gameItems);
         if (nearestItem && nearestItem.distance < CONFIG.AI_ITEM_PRIORITY_DISTANCE) {
@@ -789,6 +894,11 @@ class Player {
         // 剣士の場合、剣を描画（プレイヤーの後ろに描画するため先に描く）
         if (this.isSwordsman) {
             this.drawSword(ctx);
+        }
+
+        // レーザータイプの場合、ライフルを描画
+        if (this.isLaserType) {
+            this.drawRifle(ctx);
         }
 
         // シンプルな単色円
@@ -863,6 +973,56 @@ class Player {
         ctx.arc(swordEndX, swordEndY, 4, 0, Math.PI * 2);
         ctx.fillStyle = '#FFFFFF';
         ctx.fill();
+    }
+
+    // ライフルを描画
+    drawRifle(ctx) {
+        const rifleStartX = this.x + Math.cos(this.aimAngle) * this.radius;
+        const rifleStartY = this.y + Math.sin(this.aimAngle) * this.radius;
+        const rifleEndX = this.x + Math.cos(this.aimAngle) * (this.radius + this.rifleLength);
+        const rifleEndY = this.y + Math.sin(this.aimAngle) * (this.radius + this.rifleLength);
+
+        ctx.save();
+
+        // ライフル本体（太い線）
+        ctx.beginPath();
+        ctx.moveTo(rifleStartX, rifleStartY);
+        ctx.lineTo(rifleEndX, rifleEndY);
+
+        // グラデーションでメタリック感
+        const gradient = ctx.createLinearGradient(rifleStartX, rifleStartY, rifleEndX, rifleEndY);
+        gradient.addColorStop(0, '#555555');
+        gradient.addColorStop(0.3, '#888888');
+        gradient.addColorStop(0.5, '#AAAAAA');
+        gradient.addColorStop(0.7, '#666666');
+        gradient.addColorStop(1, '#444444');
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // ライフルの輪郭（暗い線）
+        ctx.strokeStyle = '#222222';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 銃口部分（円柱のようなハイライト）
+        ctx.beginPath();
+        ctx.arc(rifleEndX, rifleEndY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = this.color.main;
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 銃口の中心（発射口）
+        ctx.beginPath();
+        ctx.arc(rifleEndX, rifleEndY, 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+
+        ctx.restore();
     }
 
     // 剣の当たり判定（敵プレイヤーとの衝突チェック）
@@ -1157,6 +1317,108 @@ class Item {
     }
 }
 
+// ===== Beam Class (レーザービームタイプ用) =====
+class Beam {
+    constructor(x, y, angle, length, color, ownerId) {
+        this.startX = x;
+        this.startY = y;
+        this.angle = angle;
+        this.length = length;
+        this.color = color;
+        this.ownerId = ownerId;
+        this.alive = true;
+        this.life = 1;  // 1から0に減衰
+        this.duration = 300;  // ビームの滞在時間（ms）
+        this.spawnTime = performance.now();
+        this.width = 8;  // ビームの太さ
+        this.hasHit = {};  // 既にヒットしたプレイヤーを記録（重複ダメージ防止）
+
+        // ビームの終点を計算
+        this.endX = this.startX + Math.cos(this.angle) * this.length;
+        this.endY = this.startY + Math.sin(this.angle) * this.length;
+    }
+
+    update() {
+        const elapsed = performance.now() - this.spawnTime;
+        this.life = 1 - (elapsed / this.duration);
+
+        if (this.life <= 0) {
+            this.alive = false;
+        }
+    }
+
+    draw(ctx) {
+        if (!this.alive) return;
+
+        ctx.save();
+        ctx.globalAlpha = this.life;
+
+        // ビームのグロー効果（外側）
+        ctx.beginPath();
+        ctx.moveTo(this.startX, this.startY);
+        ctx.lineTo(this.endX, this.endY);
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = this.width * 2 * this.life;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = this.life * 0.3;
+        ctx.stroke();
+
+        // ビーム本体（中心）
+        ctx.beginPath();
+        ctx.moveTo(this.startX, this.startY);
+        ctx.lineTo(this.endX, this.endY);
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = this.width * this.life;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = this.life;
+        ctx.stroke();
+
+        // ビームのコア（最も明るい部分）
+        ctx.beginPath();
+        ctx.moveTo(this.startX, this.startY);
+        ctx.lineTo(this.endX, this.endY);
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = this.width * 0.5 * this.life;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = this.life;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // 線分と円の衝突判定
+    checkCollision(player) {
+        if (player.id === this.ownerId || !player.alive) return false;
+        if (this.hasHit[player.id]) return false;  // 既にヒット済み
+
+        // 線分と円の最近接点を計算
+        const dx = this.endX - this.startX;
+        const dy = this.endY - this.startY;
+        const fx = this.startX - player.x;
+        const fy = this.startY - player.y;
+
+        const a = dx * dx + dy * dy;
+        const b = 2 * (fx * dx + fy * dy);
+        const c = (fx * fx + fy * fy) - player.radius * player.radius;
+
+        let discriminant = b * b - 4 * a * c;
+
+        if (discriminant >= 0) {
+            discriminant = Math.sqrt(discriminant);
+            const t1 = (-b - discriminant) / (2 * a);
+            const t2 = (-b + discriminant) / (2 * a);
+
+            // tが0～1の範囲内なら線分上で交差
+            if ((t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1)) {
+                this.hasHit[player.id] = true;  // ヒット記録
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 // ===== Particle Class (for explosions) =====
 class Particle {
     constructor(x, y, vx, vy, color, size, decay = null) {
@@ -1202,12 +1464,52 @@ function shoot(player, target, timestamp) {
     if (timestamp - lastShootTime[key] < player.shootInterval) return;
     lastShootTime[key] = timestamp;
 
+    // 敵の方向を計算
+    const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
+
+    // レーザータイプの場合はビームを発射
+    if (player.isLaserType) {
+        // ライフルの狙い角度を更新
+        player.aimAngle = baseAngle;
+
+        // ビームライフル発射音
+        playBeamRifleSound(player.id === 'player1');
+
+        // ビームを生成
+        const beamStartX = player.x + Math.cos(baseAngle) * (player.radius + player.rifleLength);
+        const beamStartY = player.y + Math.sin(baseAngle) * (player.radius + player.rifleLength);
+
+        beams.push(new Beam(
+            beamStartX,
+            beamStartY,
+            baseAngle,
+            player.beamLength,
+            player.color.bullet,
+            player.id
+        ));
+
+        // 発射時のマズルフラッシュ
+        for (let i = 0; i < 8; i++) {
+            const angle = baseAngle + (Math.random() - 0.5) * 0.5;
+            const speed = 2 + Math.random() * 4;
+            particles.push(new Particle(
+                beamStartX, beamStartY,
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                '#FFFFFF',
+                6 + Math.random() * 6,
+                0.06
+            ));
+        }
+
+        return;
+    }
+
+    // 通常の弾幕タイプ
     // 発射音
     playShootSound(player.id === 'player1');
 
     // 弾幕パターン: プレイヤーごとの設定で扇状に発射
-    const baseAngle = Math.atan2(target.y - player.y, target.x - player.x);
-
     for (let i = 0; i < player.bulletsPerShot; i++) {
         const angle = baseAngle + (i - (player.bulletsPerShot - 1) / 2) * (player.spreadAngle / player.bulletsPerShot);
         const vx = Math.cos(angle) * player.bulletSpeed;
@@ -1353,6 +1655,7 @@ function resetMatch() {
 function resetRound() {
     roundTime = CONFIG.ROUND_DURATION;
     bullets = [];
+    beams = [];  // ビームもクリア
     particles = [];
     explosionRings = [];
     items = [];
@@ -1651,6 +1954,9 @@ function gameLoop(timestamp) {
         // Remove dead bullets
         bullets = bullets.filter(b => b.alive);
 
+        // ビームの更新と当たり判定
+        processBeams();
+
         // アイテムのスポーン（まれに）
         if (timestamp - lastItemSpawnTime > CONFIG.ITEM_SPAWN_INTERVAL) {
             lastItemSpawnTime = timestamp;
@@ -1735,6 +2041,60 @@ function processBullets() {
 
     // 弾同士の相殺判定（無効化中 - 有効にするにはコメント解除）
     // checkBulletCollisions();
+}
+
+// ビームの更新と当たり判定
+function processBeams() {
+    beams.forEach(beam => {
+        beam.update();
+
+        // ビームがまだ有効な場合、当たり判定
+        if (beam.alive) {
+            players.forEach(player => {
+                if (beam.checkCollision(player)) {
+                    // ダメージ計算（ビームの残り寿命に応じたダメージ）
+                    const damagePlayer = players.find(p => p.id === beam.ownerId);
+                    const damage = damagePlayer ? damagePlayer.beamDamage : CONFIG.BULLET_DAMAGE;
+
+                    player.takeDamage(damage);
+
+                    // 被弾音
+                    playHitSound();
+
+                    // ヒットエフェクト（ビームらしいエフェクト）
+                    for (let i = 0; i < 10; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 2 + Math.random() * 5;
+                        particles.push(new Particle(
+                            player.x, player.y,
+                            Math.cos(angle) * speed,
+                            Math.sin(angle) * speed,
+                            beam.color,
+                            8 + Math.random() * 8,
+                            0.04
+                        ));
+                    }
+
+                    // 白い閃光
+                    for (let i = 0; i < 5; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 3 + Math.random() * 4;
+                        particles.push(new Particle(
+                            player.x, player.y,
+                            Math.cos(angle) * speed,
+                            Math.sin(angle) * speed,
+                            '#FFFFFF',
+                            5 + Math.random() * 5,
+                            0.06
+                        ));
+                    }
+                }
+            });
+        }
+    });
+
+    // 消えたビームを削除
+    beams = beams.filter(b => b.alive);
 }
 
 // 弾同士の相殺
@@ -1866,6 +2226,9 @@ function draw() {
 
     // Draw bullets
     bullets.forEach(bullet => bullet.draw(ctx));
+
+    // Draw beams（弾の後、プレイヤーの前に描画）
+    beams.forEach(beam => beam.draw(ctx));
 
     // Draw players
     players.forEach(player => player.draw(ctx));
